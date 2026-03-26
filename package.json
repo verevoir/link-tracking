@@ -1,6 +1,6 @@
 {
   "name": "@verevoir/link-tracking",
-  "version": "0.1.0-alpha.3",
+  "version": "1.0.0",
   "description": "URL shortener and click tracking — the bitly pattern without the premium or someone else tracking your links",
   "homepage": "https://verevoir.io",
   "license": "MIT",
