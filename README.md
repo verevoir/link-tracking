@@ -46,8 +46,8 @@ await tracker.recordClick('a1b2c3', {
 
 // Get analytics
 const stats = await tracker.getStats('a1b2c3');
-console.log(stats.totalClicks);     // 1
-console.log(stats.clicksByDay);     // { '2026-03-11': 1 }
+console.log(stats.totalClicks); // 1
+console.log(stats.clicksByDay); // { '2026-03-11': 1 }
 console.log(stats.uniqueReferrers); // ['https://twitter.com']
 ```
 
@@ -72,8 +72,14 @@ const promo = await tracker.shorten('https://example.com/sale', {
 ```typescript
 // Bulk ingestion from CDN access logs
 await tracker.recordClicks([
-  { code: 'a1b2c3', metadata: { referrer: 'https://google.com', ip: '1.2.3.4' } },
-  { code: 'a1b2c3', metadata: { referrer: 'https://twitter.com', ip: '5.6.7.8' } },
+  {
+    code: 'a1b2c3',
+    metadata: { referrer: 'https://google.com', ip: '1.2.3.4' },
+  },
+  {
+    code: 'a1b2c3',
+    metadata: { referrer: 'https://twitter.com', ip: '5.6.7.8' },
+  },
   { code: 'x9y8z7', metadata: { referrer: null, ip: '9.10.11.12' } },
 ]);
 // Groups by code for efficient count increments
@@ -83,36 +89,36 @@ await tracker.recordClicks([
 
 ### Tracker
 
-| Export | Description |
-| --- | --- |
+| Export                                           | Description               |
+| ------------------------------------------------ | ------------------------- |
 | `createTracker({ store, baseUrl, codeLength? })` | Create a tracker instance |
 
 ### Tracker Methods
 
-| Method | Description |
-| --- | --- |
-| `shorten(url, options?)` | Create a tracked link with a unique short code |
-| `resolve(code)` | Return the target URL, or null if not found / expired |
-| `recordClick(code, metadata?)` | Record a single click event |
-| `recordClicks(clicks)` | Record multiple click events in batch |
-| `getLink(code)` | Get full link details |
-| `getClicks(code, options?)` | Get raw click records (with limit/offset) |
-| `getStats(code)` | Get aggregated analytics |
+| Method                         | Description                                           |
+| ------------------------------ | ----------------------------------------------------- |
+| `shorten(url, options?)`       | Create a tracked link with a unique short code        |
+| `resolve(code)`                | Return the target URL, or null if not found / expired |
+| `recordClick(code, metadata?)` | Record a single click event                           |
+| `recordClicks(clicks)`         | Record multiple click events in batch                 |
+| `getLink(code)`                | Get full link details                                 |
+| `getClicks(code, options?)`    | Get raw click records (with limit/offset)             |
+| `getStats(code)`               | Get aggregated analytics                              |
 
 ### Stats
 
-| Export | Description |
-| --- | --- |
+| Export                 | Description                                          |
+| ---------------------- | ---------------------------------------------------- |
 | `computeStats(clicks)` | Compute LinkStats from an array of LinkClick records |
 
 ## Architecture
 
-| File | Responsibility |
-| --- | --- |
-| `src/types.ts` | Core interfaces: TrackerStore, TrackedLink, LinkClick, LinkStats, Tracker, ShortenOptions |
-| `src/tracker.ts` | `createTracker()` factory — the core API |
-| `src/codes.ts` | Cryptographically secure short code generation (base62, collision detection) |
-| `src/stats.ts` | Click aggregation — by day, unique referrers, totals |
+| File             | Responsibility                                                                            |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| `src/types.ts`   | Core interfaces: TrackerStore, TrackedLink, LinkClick, LinkStats, Tracker, ShortenOptions |
+| `src/tracker.ts` | `createTracker()` factory — the core API                                                  |
+| `src/codes.ts`   | Cryptographically secure short code generation (base62, collision detection)              |
+| `src/stats.ts`   | Click aggregation — by day, unique referrers, totals                                      |
 
 ## Design Decisions
 
