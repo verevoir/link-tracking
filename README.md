@@ -129,15 +129,17 @@ await tracker.recordClicks([
 - **Batch ingestion.** `recordClicks()` groups clicks by code for efficient count increments — designed for CDN log processing.
 - **Zero runtime dependencies.** Pure TypeScript. No external libraries.
 
-## Documentation
+## Where it sits
 
-- [QR & Link Tracking](https://verevoir.io/docs/qr) — encoding, rendering, link tracking, and integration patterns
+- **[@verevoir/qr](https://www.npmjs.com/package/@verevoir/qr)** — encode a short link as a QR code. Pairs naturally when you want scannable versions of tracked links.
+- **[@verevoir/storage](https://www.npmjs.com/package/@verevoir/storage)** — any adapter works as the `TrackerStore`; the interface is structural.
 
-## Development
+Used in production by [Slinqi](https://slinqi.io), which combines this with `@verevoir/qr` for the shortener + QR flow.
 
-```bash
-npm install    # Install dependencies
-make build     # Compile TypeScript
-make test      # Run test suite
-make lint      # Check formatting
-```
+## Docs
+
+- [QR & link tracking](https://verevoir.io/docs/qr)
+
+## License
+
+MIT
