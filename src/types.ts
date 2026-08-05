@@ -62,6 +62,20 @@ export interface TrackerConfig {
   readonly store: TrackerStore;
   readonly baseUrl: string;
   readonly codeLength?: number;
+  /**
+   * Target-URL validator. Called at `shorten()` time before any storage
+   * write. Should throw (any Error) if the URL must not be shortened.
+   *
+   * If omitted, `defaultValidateUrl` is used — an allowlist of
+   * `http:`/`https:`/`mailto:`/`tel:` schemes with control-character
+   * normalisation and a 2048-char length cap. This is the right
+   * behaviour for almost every deployment.
+   *
+   * Override to extend (e.g. also reject self-referential hostnames):
+   * call `defaultValidateUrl(url)` first, then add your own checks.
+   * Pass a no-op (`() => {}`) only if you've already validated upstream.
+   */
+  readonly validateUrl?: (url: string) => void;
 }
 
 export interface Tracker {

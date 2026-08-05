@@ -10,6 +10,7 @@ import type {
 } from './types.js';
 import { generateUniqueCode } from './codes.js';
 import { computeStats } from './stats.js';
+import { defaultValidateUrl } from './validate-url.js';
 
 const LINK_BLOCK = 'tracked-link';
 const CLICK_BLOCK = 'link-click';
@@ -71,12 +72,17 @@ async function findByCode(
 
 export function createTracker(config: TrackerConfig): Tracker {
   const { store, codeLength = 6 } = config;
+  const validateUrl = config.validateUrl ?? defaultValidateUrl;
 
   return {
     async shorten(
       url: string,
       createdByOrOptions?: string | ShortenOptions,
     ): Promise<TrackedLink> {
+      // Reject unsafe schemes / self-references BEFORE any storage work.
+      // Throws on failure — caller gets a clear error, nothing persists.
+      validateUrl(url);
+
       const options = normalizeShortenOptions(createdByOrOptions);
 
       let code: string;
