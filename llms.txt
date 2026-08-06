@@ -1,0 +1,207 @@
+# @verevoir/link-tracking
+
+> URL shortening, click recording and stats computation in a single factory function; zero runtime dependencies and standalone (no Verevoir sibling imports required).
+
+## Install
+
+```bash
+npm install @verevoir/link-tracking
+```
+
+## Core Exports
+
+### createTracker
+
+Returns a `Tracker` object bound to your store and base URL.
+
+```typescript
+import { createTracker } from '@verevoir/link-tracking';
+
+const tracker = createTracker({
+  store,           // TrackerStore — see "Supplying a store" below
+  baseUrl: 'https://vrev.io',
+  codeLength: 6,   // optional; default 6
+});
+```
+
+### Tracker methods
+
+```typescript
+// Shorten a URL — returns TrackedLink
+const link = await tracker.shorten('https://example.com/long-path');
+// link.shortCode  → e.g. 'a1b2c3'
+// link.targetUrl  → 'https://example.com/long-path'
+// link.clickCount → 0
+
+// With options
+const link = await tracker.shorten('https://example.com', {
+  alias: 'my-slug',       // custom code; throws if already taken
+  createdBy: 'user-42',
+  expiresAt: new Date('2026-01-01'),
+});
+
+// Convenience: pass createdBy as a plain string
+const link = await tracker.shorten('https://example.com', 'user-42');
+
+// Resolve a short code to its target URL (null if not found or expired)
+const url = await tracker.resolve('a1b2c3');
+
+// Record a click
+await tracker.recordClick('a1b2c3', {
+  referrer: 'https://twitter.com',
+  userAgent: req.headers['user-agent'],
+  ip: req.ip,
+});
+
+// Batch-record clicks (groups by code, one store.update per code)
+await tracker.recordClicks([
+  { code: 'a1b2c3', metadata: { referrer: 'https://google.com' } },
+  { code: 'a1b2c3', metadata: { ip: '1.2.3.4' } },
+]);
+
+// Retrieve a link record by short code
+const link = await tracker.getLink('a1b2c3'); // TrackedLink | null
+
+// Retrieve click records
+const clicks = await tracker.getClicks('a1b2c3', { limit: 50, offset: 0 });
+
+// Compute stats directly from a short code
+const stats = await tracker.getStats('a1b2c3');
+// stats.totalClicks      → number
+// stats.uniqueReferrers  → string[]
+// stats.clicksByDay      → Record<string, number>  e.g. { '2025-07-01': 14 }
+```
+
+### computeStats
+
+Compute stats from a `LinkClick[]` array you supply — useful when you have already fetched click records and want to avoid a second round-trip.
+
+```typescript
+import { computeStats } from '@verevoir/link-tracking';
+
+const stats = computeStats(clicks); // LinkStats
+```
+
+## Supplying a store
+
+`TrackerStore` is a **structural** interface — it matches `@verevoir/storage`'s `StorageAdapter` but does not import it, so you can use any compatible object without taking that dependency.
+
+```typescript
+import type { TrackerStore } from '@verevoir/link-tracking';
+
+// Minimum implementation (e.g. for tests or a custom backend):
+const store: TrackerStore = {
+  async create(blockType, data) {
+    // persist and return { id, data }
+    const id = crypto.randomUUID();
+    return { id, data };
+  },
+  async list(blockType, options) {
+    // return matching [{ id, data }] records
+    return [];
+  },
+  async update(id, data) {
+    // persist updated data and return { id, data }
+    return { id, data };
+  },
+};
+
+const tracker = createTracker({ store, baseUrl: 'https://vrev.io' });
+```
+
+The tracker uses two internal block types: `'tracked-link'` and `'link-click'`. The `where` filter passed to `list` will contain at most one key (`shortCode` or `linkId`); your implementation must support exact-match equality on that field.
+
+## URL Validation
+
+`defaultValidateUrl` is wired in automatically. It accepts `http:`, `https:`, `mailto:` and `tel:` schemes, rejects empty strings, strips control characters (to defeat scheme-smuggling), and caps URLs at 2 048 characters.
+
+```typescript
+import {
+  defaultValidateUrl,
+  rejectSelfReferential,
+  InvalidUrlError,
+  DEFAULT_ALLOWED_URL_SCHEMES,
+} from '@verevoir/link-tracking';
+
+// Extend the default validator to also block your own domain:
+const tracker = createTracker({
+  store,
+  baseUrl: 'https://vrev.io',
+  validateUrl: (url) => {
+    defaultValidateUrl(url);
+    rejectSelfReferential(url, ['vrev.io']);
+    // Blocks 'vrev.io' and any subdomain e.g. 'app.vrev.io'
+  },
+});
+
+// Catching validation errors:
+try {
+  await tracker.shorten('javascript:alert(1)');
+} catch (err) {
+  if (err instanceof InvalidUrlError) {
+    console.error(err.message);
+  }
+}
+```
+
+## Types
+
+```typescript
+interface TrackerStore {
+  create(blockType: string, data: Record<string, unknown>): Promise<{ id: string; data: Record<string, unknown> }>;
+  list(blockType: string, options?: { where?: Record<string, unknown>; orderBy?: Record<string, 'asc' | 'desc'>; limit?: number; offset?: number }): Promise<{ id: string; data: Record<string, unknown> }[]>;
+  update(id: string, data: Record<string, unknown>): Promise<{ id: string; data: Record<string, unknown> }>;
+}
+
+interface TrackerConfig {
+  store: TrackerStore;
+  baseUrl: string;
+  codeLength?: number;          // default 6
+  validateUrl?: (url: string) => void;  // default: defaultValidateUrl
+}
+
+interface TrackedLink {
+  id: string;
+  shortCode: string;
+  targetUrl: string;
+  createdAt: string;            // ISO 8601
+  createdBy: string | null;
+  clickCount: number;
+  expiresAt: string | null;     // ISO 8601 or null
+}
+
+interface ShortenOptions {
+  createdBy?: string;
+  expiresAt?: Date;
+  alias?: string;
+}
+
+interface ClickMetadata {
+  referrer?: string;
+  userAgent?: string;
+  ip?: string;
+  [key: string]: unknown;
+}
+
+interface LinkClick {
+  id: string;
+  linkId: string;
+  timestamp: string;            // ISO 8601
+  referrer: string | null;
+  userAgent: string | null;
+  ip: string | null;
+  metadata: Record<string, unknown>;
+}
+
+interface LinkStats {
+  totalClicks: number;
+  uniqueReferrers: string[];
+  clicksByDay: Record<string, number>;  // key: 'YYYY-MM-DD'
+}
+```
+
+## Notes
+
+- `resolve` returns `null` for both missing and expired links — callers should respond with a 404 or equivalent rather than exposing which condition applies.
+- `recordClick` increments `clickCount` on the link document atomically within a single `store.update` call; `recordClicks` batches this to one `update` per unique short code.
+- `getStats` fetches all click records for the link; for very high-traffic links prefer fetching clicks with pagination via `getClicks` and calling `computeStats` yourself.
